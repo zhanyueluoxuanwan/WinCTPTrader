@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="源文件\CTPlib">
+      <UniqueIdentifier>{1ae4503a-4826-4065-b4c2-16fc05c5dbc4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -30,6 +33,21 @@
     <ClInclude Include="TdSpi.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="win64api\ThostFtdcMdApi.h">
+      <Filter>源文件\CTPlib</Filter>
+    </ClInclude>
+    <ClInclude Include="win64api\ThostFtdcTraderApi.h">
+      <Filter>源文件\CTPlib</Filter>
+    </ClInclude>
+    <ClInclude Include="win64api\ThostFtdcUserApiDataType.h">
+      <Filter>源文件\CTPlib</Filter>
+    </ClInclude>
+    <ClInclude Include="win64api\ThostFtdcUserApiStruct.h">
+      <Filter>源文件\CTPlib</Filter>
+    </ClInclude>
+    <ClInclude Include="MyStrategy.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -44,13 +62,32 @@
     <ClCompile Include="TdSpi.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="MyStrategy.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="win64api\thostmduserapi.dll" />
-    <None Include="win64api\thosttraderapi.dll" />
+    <None Include="win64api\error.dtd">
+      <Filter>源文件\CTPlib</Filter>
+    </None>
+    <None Include="win64api\thostmduserapi.dll">
+      <Filter>源文件\CTPlib</Filter>
+    </None>
+    <None Include="win64api\thosttraderapi.dll">
+      <Filter>源文件\CTPlib</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <Library Include="win64api\thostmduserapi.lib" />
-    <Library Include="win64api\thosttraderapi.lib" />
+    <Xml Include="win64api\error.xml">
+      <Filter>源文件\CTPlib</Filter>
+    </Xml>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="win64api\thostmduserapi.lib">
+      <Filter>源文件\CTPlib</Filter>
+    </Library>
+    <Library Include="win64api\thosttraderapi.lib">
+      <Filter>源文件\CTPlib</Filter>
+    </Library>
   </ItemGroup>
 </Project>

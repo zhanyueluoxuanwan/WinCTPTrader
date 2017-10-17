@@ -1,12 +1,11 @@
 //行情接口实现
 #include "stdafx.h"
 #include "MdSpi.h"
-#include "TraderInfo.h"
-
+#include <iomanip>   
+using namespace std;
 
 MdSpi::MdSpi(CThostFtdcMdApi *mdapi) {
 	//init api
-	fd = new FT_DATA();
 	my_mdapi = mdapi;
 	my_loginID = 10;
 	//reading instruments
@@ -33,12 +32,15 @@ MdSpi::~MdSpi() {
 	for (int i = 0; i < instrumentNum; i++)
 		delete[] instrumentID[i];
 	delete[] instrumentID;
-	delete fd;
+	my_strategy.reset();
 };
 
 void MdSpi::OnFrontConnected() {
 	//processing connected operation
 	//采取自动读取用户名和密码，进行系统内置重连
+	//第一个版本，默认每次登陆清空原始行情
+	market_data.clear();
+	//载入用户名和密码
 	ifstream uid(UID);
 	if (uid.is_open()) {
 		getline(uid, user_id);
@@ -82,9 +84,35 @@ void MdSpi::OnRspSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificInstr
 //将行情信息传入交易单元中
 //依据逻辑架构设计
 void MdSpi::OnRtnDepthMarketData(CThostFtdcDepthMarketDataField *MarketData) {
-	
+	cout << "Time is: " << MarketData->TradingDay
+		<< " " << MarketData->UpdateTime
+	    << " " << std::setw(3) << MarketData->UpdateMillisec
+		<< " Instrument is: " << MarketData->InstrumentID
+		<< " Price is: " << MarketData->LastPrice
+		<< endl;
+	FT_DATA fd;
+	fd.id = MarketData->InstrumentID;
+	fd.time = MarketData->TradingDay;
+	fd.time += '-';
+	fd.time += MarketData->UpdateTime;
+	fd.time += '-';
+	fd.time += std::to_string(MarketData->UpdateMillisec);
+	fd.open = MarketData->OpenPrice;
+	fd.high = MarketData->HighestPrice;
+	fd.low = MarketData->LowestPrice;
+	fd.close = MarketData->LastPrice;
+	fd.ask1 = MarketData->AskPrice1;
+	fd.bid1 = MarketData->BidPrice1;
+	fd.askvol1 = MarketData->AskVolume1;
+	fd.bidvol1 = MarketData->BidVolume1;
+	fd.vol = MarketData->Volume;
+	fd.interest = MarketData->Turnover;
+	fd.holding = MarketData->OpenInterest;
+	market_data[fd.id].push_back(fd);
+	//交易接口
+	my_strategy->TradeOnMarketData(market_data);
 };
 
 void MdSpi::OnRspUnSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificInstrument, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
-	
+	 
 };

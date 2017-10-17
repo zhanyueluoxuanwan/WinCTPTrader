@@ -141,18 +141,26 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>E:\CTPTrader\CTPTrader\CTPTrader\win64api;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <ForceFileOutput>Enabled</ForceFileOutput>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="MdSpi.h" />
+    <ClInclude Include="MyStrategy.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="TdSpi.h" />
     <ClInclude Include="TraderInfo.h" />
+    <ClInclude Include="win64api\ThostFtdcMdApi.h" />
+    <ClInclude Include="win64api\ThostFtdcTraderApi.h" />
+    <ClInclude Include="win64api\ThostFtdcUserApiDataType.h" />
+    <ClInclude Include="win64api\ThostFtdcUserApiStruct.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CTPTrader.cpp" />
     <ClCompile Include="MdSpi.cpp" />
+    <ClCompile Include="MyStrategy.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -162,8 +170,12 @@
     <ClCompile Include="TdSpi.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="win64api\error.dtd" />
     <None Include="win64api\thostmduserapi.dll" />
     <None Include="win64api\thosttraderapi.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="win64api\error.xml" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="win64api\thostmduserapi.lib" />

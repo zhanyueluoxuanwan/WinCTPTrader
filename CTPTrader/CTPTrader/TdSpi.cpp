@@ -1,5 +1,5 @@
-﻿#include"stdafx.h"
-#include"TdSpi.h"
+﻿#include "stdafx.h"
+#include "TdSpi.h"
 #include <fstream>
 #include <string>
 #include <iostream>
@@ -34,7 +34,22 @@ TdSpi::TdSpi(CThostFtdcTraderApi *my_tdapi) {
 	else
 		cout << "Cannot read instruments!" << endl;
 	instrumentFile.close();
+	
+	//启动后台报单线程
+	LittleTrader = thread(&TdSpi::InsertOrder, this);
+}
 
+//析构函数，释放指针资源，等待线程退出
+TdSpi::~TdSpi() {
+	ORDER tmp;
+	tmp.id = "EOF";
+	order_queue.push_back(tmp);
+	empty_signal.notify_all();
+	//等待后台线程结束
+	LittleTrader.join();
+	//删除指针资源
+	delete my_login, my_auth, my_account, my_confirm, my_pos, my_settlement, my_settleconfirm;	//结算确认信息
+	my_strategy.reset();
 }
 
 //当客户端与交易后台建立起通信连接时（还未登录前），该方法被调用。
@@ -267,4 +282,89 @@ void TdSpi::AlertInfo(int res, string func) {
 	default:
 		cout << "Unknown error, maybe new standard. Error code: " << res << endl;
 	}
+
+}
+
+//报单录入,后台自动由LittleTrader调用
+int TdSpi::InsertOrder() {
+	while (true) {
+		std::unique_lock<std::mutex> lck(mtx);
+		while (order_queue.size() == 0)
+			empty_signal.wait(lck);
+		if (order_queue[0].id == "EOF")		//报单的合约代码为EOF表示线程结束
+			break;
+		CThostFtdcInputOrderField ord;
+		memset(&ord, 0, sizeof(ord));
+		//经纪公司代码
+		strcpy_s(ord.BrokerID, broker.c_str());
+		//投资者代码
+		strcpy_s(ord.InvestorID, user_id.c_str());
+		// 合约代码
+		strcpy_s(ord.InstrumentID, order_queue[0].id.c_str());
+		///报单引用
+		strcpy_s(ord.OrderRef, "000000000001");
+		// 用户代码
+		strcpy_s(ord.UserID, "zy");
+		// 报单价格条件
+		ord.OrderPriceType = THOST_FTDC_OPT_LimitPrice;
+		// 买卖方向
+		ord.Direction = THOST_FTDC_D_Buy;
+		// 组合开平标志
+		strcpy_s(ord.CombOffsetFlag, "0");
+		// 组合投机套保标志
+		strcpy_s(ord.CombHedgeFlag, "1");
+		// 价格
+		ord.LimitPrice = order_queue[0].price;
+		// 数量
+		ord.VolumeTotalOriginal = order_queue[0].volume;
+		// 有效期类型
+		ord.TimeCondition = THOST_FTDC_TC_GFD;
+		// GTD日期
+		strcpy_s(ord.GTDDate, "");
+		// 成交量类型
+		ord.VolumeCondition = THOST_FTDC_VC_AV;
+		// 最小成交量
+		ord.MinVolume = 0;
+		// 触发条件
+		ord.ContingentCondition = THOST_FTDC_CC_Immediately;
+		// 止损价
+		ord.StopPrice = 0;
+		// 强平原因
+		ord.ForceCloseReason = THOST_FTDC_FCC_NotForceClose;
+		// 自动挂起标志
+		ord.IsAutoSuspend = 0;
+		AlertInfo(my_tdapi->ReqOrderInsert(&ord, my_strategy->GetUid()), "ReqOrderInsert");
+		//弹出单子队列
+		order_queue.pop_front();
+		lck.unlock();
+	}
+	return 0;
+};
+//报单操作（改撤单）,TdSpi主动调用
+//目前第一版暂时不用
+int TdSpi::OrderAction(CThostFtdcInputOrderActionField *pInputOrderAction, int nRequestID) {
+
+}
+
+//报单录入应答，CTP回调函数
+void TdSpi::OnRspOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
+	if (pRspInfo == nullptr)
+		cout << "No information returned!" << endl;
+	else
+		cout << "Returned information is: " << pRspInfo->ErrorMsg << endl;
+}
+
+//报单操作应答，CTP回调函数
+//目前第一版暂时不用
+void TdSpi::OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrderAction, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
+
+}
+
+//报单回报，CTP回调函数
+void TdSpi::OnRtnOrder(CThostFtdcOrderField *pOrder) {
+	my_strategy->OnRtnOrder(pOrder);
+}
+//成交回报，CTP回调函数
+void TdSpi::OnRtnTrade(CThostFtdcTradeField *pTrade) {
+	my_strategy->OnRtnTrade(pTrade);
 }

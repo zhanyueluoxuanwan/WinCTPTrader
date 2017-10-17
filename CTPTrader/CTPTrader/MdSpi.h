@@ -1,12 +1,13 @@
 //行情接收单元头文件
 //CTP Trader中不设置数据库读写服务
 #pragma once
-#include "TraderInfo.h"
+#include "MyStrategy.h"
 #include ".\win64api\ThostFtdcMdApi.h"
 #include <ctime>
 #include <cstring>
 #include <string>
 #include <fstream>
+#include <vector>
 
 class MdSpi : public CThostFtdcMdSpi {
 public:
@@ -32,6 +33,9 @@ public:
 	//disconnected
 	void OnFrontDisconnected(int nReason) {};
 
+	//与策略耦合的接口
+	void RegisterStrategy(shared_ptr<MyStrategy> my_strategy) { this->my_strategy = my_strategy; };
+
 private:
 	CThostFtdcMdApi *my_mdapi;
 	CThostFtdcReqUserLoginField *my_login;
@@ -41,5 +45,5 @@ private:
 	string password;
 	int instrumentNum;
 	char **instrumentID;
-	FT_DATA *fd;
+	shared_ptr<MyStrategy> my_strategy;
 };

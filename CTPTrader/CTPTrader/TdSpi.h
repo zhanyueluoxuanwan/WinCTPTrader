@@ -2,15 +2,15 @@
 //查询的合约持仓一定要和设置的合约一致
 #pragma once
 #include "stdafx.h"
-#include "TraderInfo.h"
-#include "win64api\ThostFtdcTraderApi.h"
+#include "MyStrategy.h"
+#include ".\win64api\ThostFtdcTraderApi.h"
 #include <map>
 
 class TdSpi :public CThostFtdcTraderSpi {
 public:
 	//构造函数
 	TdSpi(CThostFtdcTraderApi *my_tdapi);
-
+	~TdSpi();
 	//当客户端与交易后台建立起通信连接时（还未登录前），该方法被调用。
 	void OnFrontConnected();
 
@@ -58,6 +58,24 @@ public:
 	//信息提示
 	//依据CPT API标准
 	void AlertInfo(int res, string func);
+
+	//基本的交易接口
+	//报单录入,TdSpi主动调用，使用线程LittleTrader调用
+	int InsertOrder();
+	//报单操作（改撤单）,TdSpi主动调用
+	int OrderAction(CThostFtdcInputOrderActionField *pInputOrderAction, int nRequestID);
+	//报单录入应答，CTP回调函数
+	void OnRspOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
+	//报单操作应答，CTP回调函数
+	void OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrderAction, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
+	//报单回报，CTP回调函数
+	void OnRtnOrder(CThostFtdcOrderField *pOrder);
+	//成交回报，CTP回调函数
+	void OnRtnTrade(CThostFtdcTradeField *pTrade);
+
+	//与策略耦合的接口
+	void RegisterStrategy(shared_ptr<MyStrategy> my_strategy) { this->my_strategy = my_strategy; }
+
 private:
 	CThostFtdcTraderApi *my_tdapi;							//交易API
 	CThostFtdcReqUserLoginField *my_login;					//登录接口
@@ -68,10 +86,13 @@ private:
 	CThostFtdcQrySettlementInfoField *my_settlement;		//结算信息
 	CThostFtdcSettlementInfoConfirmField *my_settleconfirm;	//结算确认信息
 
+	std::thread LittleTrader;								//报单线程
 	string broker;											//经纪商ID
 	string user_id;											//用户名
 	string password;										//登录密码
 	string my_day;											//交易日期
 	map<string, POS_INFO> pos;								//持仓信息
 	double money;											//资金信息
+
+	shared_ptr<MyStrategy> my_strategy;						//交易策略指针
 };
