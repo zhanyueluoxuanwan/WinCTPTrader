@@ -21,6 +21,15 @@
     <ClInclude Include="targetver.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="TraderInfo.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MdSpi.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="TdSpi.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -29,5 +38,19 @@
     <ClCompile Include="CTPTrader.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="MdSpi.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="TdSpi.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="win64api\thostmduserapi.dll" />
+    <None Include="win64api\thosttraderapi.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="win64api\thostmduserapi.lib" />
+    <Library Include="win64api\thosttraderapi.lib" />
   </ItemGroup>
 </Project>
