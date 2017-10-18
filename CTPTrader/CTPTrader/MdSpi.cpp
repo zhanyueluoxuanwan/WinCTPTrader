@@ -84,12 +84,14 @@ void MdSpi::OnRspSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificInstr
 //将行情信息传入交易单元中
 //依据逻辑架构设计
 void MdSpi::OnRtnDepthMarketData(CThostFtdcDepthMarketDataField *MarketData) {
+	/*
 	cout << "Time is: " << MarketData->TradingDay
 		<< " " << MarketData->UpdateTime
 	    << " " << std::setw(3) << MarketData->UpdateMillisec
 		<< " Instrument is: " << MarketData->InstrumentID
 		<< " Price is: " << MarketData->LastPrice
 		<< endl;
+		*/
 	FT_DATA fd;
 	fd.id = MarketData->InstrumentID;
 	fd.time = MarketData->TradingDay;
@@ -108,9 +110,14 @@ void MdSpi::OnRtnDepthMarketData(CThostFtdcDepthMarketDataField *MarketData) {
 	fd.vol = MarketData->Volume;
 	fd.interest = MarketData->Turnover;
 	fd.holding = MarketData->OpenInterest;
-	market_data[fd.id].push_back(fd);
+	fd.upper_limit = MarketData->UpperLimitPrice;
+	fd.lower_limit = MarketData->LowerLimitPrice;
+	market_data[fd.id].push_back(fd);	//测试market_data map的初始化形式
 	//交易接口
-	my_strategy->TradeOnMarketData(market_data);
+	cout << "Past order size: " << order_queue.size() << endl;
+	my_strategy->TradeOnMarketData(market_data, MarketData->InstrumentID);
+	empty_signal.notify_all();
+	cout << "Current order size: " << order_queue.size() << endl;
 };
 
 void MdSpi::OnRspUnSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificInstrument, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {

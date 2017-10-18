@@ -92,7 +92,7 @@ private:
 	string password;										//登录密码
 	string my_day;											//交易日期
 	map<string, POS_INFO> pos;								//持仓信息
-	double money;											//资金信息
+	//double money;											//资金信息采用全局变量
 
 	shared_ptr<MyStrategy> my_strategy;						//交易策略指针
 };
