@@ -293,22 +293,19 @@ void TdSpi::OnRspQryTradingAccount(CThostFtdcTradingAccountField *pTradingAccoun
 	}
 }
 //请求查询投资者持仓响应
+//此处可能会遇到空指针，需要继续debug
 void TdSpi::OnRspQryInvestorPosition(CThostFtdcInvestorPositionField *pInvestorPosition,
 	CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
 	if (pRspInfo != nullptr) {
 		cout << "错误代码：" << pRspInfo->ErrorID << "错误信息:" << pRspInfo->ErrorMsg;
 	}
-	else {
-		if (pInvestorPosition->Position != 0) {
-			pos[pInvestorPosition->InstrumentID].YdPosition = pInvestorPosition->YdPosition * (pInvestorPosition->PosiDirection == '2' ? 1 : -1);
-			pos[pInvestorPosition->InstrumentID].Position = pInvestorPosition->Position * (pInvestorPosition->PosiDirection == '2' ? 1 : -1);
-		}
-		if (bIsLast) 
-			cout << "合约代码:" << pInvestorPosition->InstrumentID
-			<< " 当前持仓：" << pos[pInvestorPosition->InstrumentID].Position
-			<< " bIsLast: " << (bIsLast ? 1 : 0)
-			<< endl;
+	else if (pInvestorPosition != nullptr) {
+		pos[pInvestorPosition->InstrumentID].YdPosition = pInvestorPosition->YdPosition * (pInvestorPosition->PosiDirection == '2' ? 1 : -1);
+		pos[pInvestorPosition->InstrumentID].Position = pInvestorPosition->Position * (pInvestorPosition->PosiDirection == '2' ? 1 : -1);
 	}
+	if (bIsLast)	//最后一笔回报
+		for (map<string, POS_INFO>::iterator it = pos.begin(); it != pos.end(); it++)
+			cout << "InstrumentID: " << it->first << " position: " << it->second.Position << endl;
 }
 
 //返回信息提示
@@ -421,12 +418,15 @@ void TdSpi::OrderAction() {
 			///报单操作引用
 			//	TThostFtdcOrderActionRefType	OrderActionRef;
 			///报单引用
+			cout << "报单引用：" << order_queue[0].ORDER_REF << endl;
 			strcpy_s(req.OrderRef, order_queue[0].ORDER_REF);
 			///请求编号
 			//	TThostFtdcRequestIDType	RequestID;
 			///前置编号
+			cout << "前置编号：" << order_queue[0].front_id << endl;
 			req.FrontID = order_queue[0].front_id;
 			///会话编号
+			cout << "会话编号：" << order_queue[0].session_id << endl;
 			req.SessionID = order_queue[0].session_id;
 			///交易所代码
 			//	TThostFtdcExchangeIDType	ExchangeID;
@@ -441,6 +441,7 @@ void TdSpi::OrderAction() {
 			///用户代码
 			//	TThostFtdcUserIDType	UserID;
 			///合约代码
+			cout << "合约代码：" << order_queue[0].id << endl;
 			strcpy_s(req.InstrumentID, order_queue[0].id.c_str());
 
 			//撤单

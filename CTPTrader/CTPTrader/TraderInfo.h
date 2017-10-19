@@ -23,8 +23,7 @@ typedef struct {
 	double multiplier;			//合约乘数
 	double commission;			//手续费率
 	double deposit_percent;		//保证金率
-}fee;
-const double base_percent = 0.3;			//最低保证金需求				
+}fee;			
 extern map<string, fee> trade_param;		//交易参数
 
 //资金信息

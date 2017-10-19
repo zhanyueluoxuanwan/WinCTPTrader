@@ -11,3 +11,6 @@
 #define MARKET_FRONT_IP		"tcp://180.168.146.187:10010"	//行情前置
 #define BROKER_ID			"9999"							//经纪商id
 
+
+//最低保证金需求
+const double base_percent = 0.3;			//最低保证金需求	

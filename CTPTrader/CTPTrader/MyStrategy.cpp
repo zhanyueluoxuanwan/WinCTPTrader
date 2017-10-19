@@ -6,10 +6,12 @@ using namespace std;
 
 //根据实时行情进行交易
 void MyStrategy::TradeOnMarketData(map<string, vector<FT_DATA>> &market_data, string InstrumentID) {
+	/*
 	cout << "Time: " << setw(25) << market_data[InstrumentID][market_data[InstrumentID].size() - 1].time
 		<< " InstrumentID: " << InstrumentID
 		<< " Last Price: " << market_data[InstrumentID][market_data[InstrumentID].size() - 1].close
 		<< endl;
+		*/
 	if (InstrumentID != "rb1801")
 		return;
 	count++;
@@ -31,7 +33,6 @@ void MyStrategy::TradeOnMarketData(map<string, vector<FT_DATA>> &market_data, st
 		cout << "Cancel current order!" << endl;
 		ORDER new_order;
 		new_order.id = InstrumentID;
-		strcpy_s(new_order.ORDER_REF, ORDER_REF);
 		new_order.order_type = ORDER_CANCEL;
 		CancelOrder(new_order);
 		pos = 0;
@@ -62,6 +63,8 @@ void MyStrategy::OnRtnOrder(MyOrder *order) {
 			<< " SessionID is: " << order->SessionID
 			<< " OrderRef is: " << order->OrderRef
 			<< " Order direction: " << order->Direction
+			<< " Order status: " << order->OrderStatus
+			<< " Order status message: " << order->StatusMsg
 			<< endl;
 	}
 }
@@ -83,16 +86,20 @@ void MyStrategy::CommitOrder(ORDER &new_order) {
 	sprintf_s(ORDER_REF, "%d", order_reference);
 	strcpy_s(new_order.ORDER_REF, ORDER_REF);
 	order_queue.push_back(new_order);
+	local_order_queue.insert(make_pair(order_reference, true));
 	empty_signal.notify_all();
 }
 
 //撤单操作
 void MyStrategy::CancelOrder(ORDER &new_order) {
-	if (local_order_queue.count(atoi(new_order.ORDER_REF)) == 0)
+	if (local_order_queue.count(order_reference) == 0)
 		cout << "Failed Cancel! No such order!" << endl;
-	else if(!local_order_queue[atoi(new_order.ORDER_REF)])
+	else if(!local_order_queue[order_reference])
 		cout << "Failed Cancel! Order has been traded!" << endl;
 	else {
+		strcpy_s(new_order.ORDER_REF, ORDER_REF);
+		new_order.front_id = front_id;
+		new_order.session_id = session_id;
 		order_queue.push_back(new_order);
 		empty_signal.notify_all();
 	}

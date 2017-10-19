@@ -18,8 +18,8 @@ public:
 	}
 	//更新基本交易信息
 	void UpdateTradeBasis(int front_id, int session_id) {
-		front_id = front_id;
-		session_id = session_id;
+		this->front_id = front_id;
+		this->session_id = session_id;
 	}
 	//交易逻辑核心,在MdSpi中RtnMarketData中调用
 	void TradeOnMarketData(map<string, vector<FT_DATA>> &market_data, string InstrumentID);
@@ -39,10 +39,10 @@ private:
 	int pos;	//合约持仓
 	int count;	//计数器，测试用防止测试过快消耗完模拟资金
 
-	volatile int order_request;					//报单请求，目前没啥用，先预留
-	volatile int order_reference;				//报单引用，计数字段
-	MyOrderRef	ORDER_REF;						//报单引用，标准字段
-	map<int, bool> local_order_queue;		//本地维护的报单队列
+	int order_request;						//报单请求，目前没啥用，先预留
+	int order_reference;					//报单引用，计数字段
+	MyOrderRef	ORDER_REF;					//报单引用，标准字段
+	map<int, bool> local_order_queue;		//本地维护的报单队列，每次提交成功后，报单都会保存到本地报单队列中，未成交为true，成交为false
 
 	int front_id;			//交易前置id
 	int session_id;			//当前回话id
