@@ -35,10 +35,51 @@ TdSpi::TdSpi(CThostFtdcTraderApi *my_tdapi) {
 	else
 		cout << "Cannot read instruments!" << endl;
 	instrumentFile.close();
-	
+	//更新合约交易参数
+	cout << "更新交易合约参数！" << endl;
+	UpdateTradeParam();
+
 	//启动后台报单线程
 	cout << "启动后台报单线程！" << endl;
 	LittleTrader = thread(&TdSpi::OrderAction, this);
+}
+
+//更新合约交易参数
+void TdSpi::UpdateTradeParam() {
+	ifstream feeFile(TRADE_PARAM_FILE);
+	string param;
+	while (getline(feeFile, param)) {
+		string tmp = "";
+		int field_index = 0;
+		string InstrumentID;
+		fee new_fee;
+		for (int i = 0; i < param.size(); i++) {
+			if (param[i] == ',') {
+				switch (field_index) {
+				case 0:
+					cout << "InstrumentID is: " << tmp << endl;
+					InstrumentID = tmp;
+					break;
+				case 1:
+					cout << "Multiplier is: " << atof(tmp.c_str()) << endl;
+					new_fee.multiplier = atof(tmp.c_str());
+					break;
+				case 2:
+					cout << "Commission is: " << atof(tmp.c_str()) << endl;
+					new_fee.commission = atof(tmp.c_str());
+					break;
+				}
+				field_index++;
+				tmp = "";
+			}
+			else
+				tmp += param[i];
+		}
+		cout << "Deposit is: " << atof(tmp.c_str()) << endl;
+		new_fee.deposit_percent = atof(tmp.c_str());
+		trade_param.insert(make_pair(InstrumentID, new_fee));
+	}
+	feeFile.close();
 }
 
 //析构函数，释放指针资源，等待线程退出
@@ -308,58 +349,67 @@ void TdSpi::OrderAction() {
 		}
 		cout << "Get new order!" << endl;
 		if (order_queue[0].order_type == ORDER_COMMIT) {
-			CThostFtdcInputOrderField ord;
-			memset(&ord, 0, sizeof(ord));
-			///经纪公司代码
-			strcpy_s(ord.BrokerID, broker.c_str());
-			///投资者代码
-			strcpy_s(ord.InvestorID, user_id.c_str());
-			///合约代码
-			strcpy_s(ord.InstrumentID, order_queue[0].id.c_str());
-			///报单引用
-			//order_reference++;
-			//sprintf_s(ORDER_REF, "%d", order_reference);
-			//strcpy_s(ord.OrderRef, ORDER_REF);
-			strcpy_s(ord.OrderRef, order_queue[0].ORDER_REF);
-			///用户代码
-			//	TThostFtdcUserIDType	UserID;
-			///报单价格条件: 限价
-			ord.OrderPriceType = THOST_FTDC_OPT_LimitPrice;
-			///买卖方向: 
-			ord.Direction = order_queue[0].direction;
-			///组合开平标志: 开仓
-			ord.CombOffsetFlag[0] = order_queue[0].type;
-			///组合投机套保标志
-			ord.CombHedgeFlag[0] = THOST_FTDC_HF_Speculation;
-			///价格
-			ord.LimitPrice = order_queue[0].price;
-			///数量: 1
-			ord.VolumeTotalOriginal = 1;
-			///有效期类型: 当日有效
-			ord.TimeCondition = THOST_FTDC_TC_GFD;
-			///GTD日期
-			//	TThostFtdcDateType	GTDDate;
-			///成交量类型: 任何数量
-			ord.VolumeCondition = THOST_FTDC_VC_AV;
-			///最小成交量: 1
-			ord.MinVolume = 1;
-			///触发条件: 立即
-			ord.ContingentCondition = THOST_FTDC_CC_Immediately;
-			///止损价
-			//	TThostFtdcPriceType	StopPrice;
-			///强平原因: 非强平
-			ord.ForceCloseReason = THOST_FTDC_FCC_NotForceClose;
-			///自动挂起标志: 否
-			ord.IsAutoSuspend = 0;
-			///业务单元
-			//	TThostFtdcBusinessUnitType	BusinessUnit;
-			///请求编号
-			//	TThostFtdcRequestIDType	RequestID;
-			///用户强评标志: 否
-			ord.UserForceClose = 0;
+			if (trade_param.count(order_queue[0].id) == 0) 
+				cout << "Little trader has no information about: " << order_queue[0].id << endl;
+			else if (money - 
+				order_queue[0].volume * order_queue[0].price * trade_param[order_queue[0].id].multiplier * 
+				(trade_param[order_queue[0].id].deposit_percent + trade_param[order_queue[0].id].commission * 2) < money * base_percent) {		//控制开仓风险
+				cout << "Little trader has no money to commit so many orders!" << endl;
+			}
+			else {
+				CThostFtdcInputOrderField ord;
+				memset(&ord, 0, sizeof(ord));
+				///经纪公司代码
+				strcpy_s(ord.BrokerID, broker.c_str());
+				///投资者代码
+				strcpy_s(ord.InvestorID, user_id.c_str());
+				///合约代码
+				strcpy_s(ord.InstrumentID, order_queue[0].id.c_str());
+				///报单引用
+				//order_reference++;
+				//sprintf_s(ORDER_REF, "%d", order_reference);
+				//strcpy_s(ord.OrderRef, ORDER_REF);
+				strcpy_s(ord.OrderRef, order_queue[0].ORDER_REF);
+				///用户代码
+				//	TThostFtdcUserIDType	UserID;
+				///报单价格条件: 限价
+				ord.OrderPriceType = THOST_FTDC_OPT_LimitPrice;
+				///买卖方向: 
+				ord.Direction = order_queue[0].direction;
+				///组合开平标志: 开仓
+				ord.CombOffsetFlag[0] = order_queue[0].type;
+				///组合投机套保标志
+				ord.CombHedgeFlag[0] = THOST_FTDC_HF_Speculation;
+				///价格
+				ord.LimitPrice = order_queue[0].price;
+				///数量: 1
+				ord.VolumeTotalOriginal = 1;
+				///有效期类型: 当日有效
+				ord.TimeCondition = THOST_FTDC_TC_GFD;
+				///GTD日期
+				//	TThostFtdcDateType	GTDDate;
+				///成交量类型: 任何数量
+				ord.VolumeCondition = THOST_FTDC_VC_AV;
+				///最小成交量: 1
+				ord.MinVolume = 1;
+				///触发条件: 立即
+				ord.ContingentCondition = THOST_FTDC_CC_Immediately;
+				///止损价
+				//	TThostFtdcPriceType	StopPrice;
+				///强平原因: 非强平
+				ord.ForceCloseReason = THOST_FTDC_FCC_NotForceClose;
+				///自动挂起标志: 否
+				ord.IsAutoSuspend = 0;
+				///业务单元
+				//	TThostFtdcBusinessUnitType	BusinessUnit;
+				///请求编号
+				//	TThostFtdcRequestIDType	RequestID;
+				///用户强评标志: 否
+				ord.UserForceClose = 0;
 
-			//报单
-			AlertInfo(my_tdapi->ReqOrderInsert(&ord, ++order_request), "ReqOrderInsert");
+				//报单
+				AlertInfo(my_tdapi->ReqOrderInsert(&ord, ++order_request), "ReqOrderInsert");
+			}
 		}
 		else if(order_queue[0].order_type == ORDER_CANCEL) {
 			CThostFtdcInputOrderActionField req;
