@@ -142,10 +142,12 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>E:\CTPTrader\CTPTrader\CTPTrader\win64api;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <ForceFileOutput>Enabled</ForceFileOutput>
+      <ForceFileOutput>
+      </ForceFileOutput>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="FileInfo.h" />
     <ClInclude Include="MdSpi.h" />
     <ClInclude Include="MyStrategy.h" />
     <ClInclude Include="stdafx.h" />

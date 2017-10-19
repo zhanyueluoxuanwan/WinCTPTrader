@@ -38,7 +38,8 @@ MdSpi::~MdSpi() {
 void MdSpi::OnFrontConnected() {
 	//processing connected operation
 	//采取自动读取用户名和密码，进行系统内置重连
-	//第一个版本，默认每次登陆清空原始行情
+	//第一个版本，默认每次登陆清空原始行情和报单队列
+	order_queue.clear();
 	market_data.clear();
 	//载入用户名和密码
 	ifstream uid(UID);
@@ -114,10 +115,7 @@ void MdSpi::OnRtnDepthMarketData(CThostFtdcDepthMarketDataField *MarketData) {
 	fd.lower_limit = MarketData->LowerLimitPrice;
 	market_data[fd.id].push_back(fd);	//测试market_data map的初始化形式
 	//交易接口
-	cout << "Past order size: " << order_queue.size() << endl;
 	my_strategy->TradeOnMarketData(market_data, MarketData->InstrumentID);
-	empty_signal.notify_all();
-	cout << "Current order size: " << order_queue.size() << endl;
 };
 
 void MdSpi::OnRspUnSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificInstrument, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {

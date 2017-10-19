@@ -60,10 +60,8 @@ public:
 	void AlertInfo(int res, string func);
 
 	//基本的交易接口
-	//报单录入,TdSpi主动调用，使用线程LittleTrader调用
-	int InsertOrder();
-	//报单操作（改撤单）,TdSpi主动调用
-	int OrderAction(CThostFtdcInputOrderActionField *pInputOrderAction, int nRequestID);
+	//报单操作，包括报单和撤单,TdSpi主动调用，使用线程LittleTrader调用，为以后多策略做准备
+	void OrderAction();
 	//报单录入应答，CTP回调函数
 	void OnRspOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast);
 	//报单操作应答，CTP回调函数

@@ -18,6 +18,7 @@ TdSpi::TdSpi(CThostFtdcTraderApi *my_tdapi) {
 	my_settleconfirm = new CThostFtdcSettlementInfoConfirmField();
 	my_day = "";	//初始化交易日期，用于后面作比较
 	//初始化合约持仓信息
+	pos.clear();
 	ifstream instrumentFile(INSTRUMENT_FILE);
 	POS_INFO init_pos = {0, 0, 0, 0};
 	if (instrumentFile.is_open()) {
@@ -37,7 +38,7 @@ TdSpi::TdSpi(CThostFtdcTraderApi *my_tdapi) {
 	
 	//启动后台报单线程
 	cout << "启动后台报单线程！" << endl;
-	LittleTrader = thread(&TdSpi::InsertOrder, this);
+	LittleTrader = thread(&TdSpi::OrderAction, this);
 }
 
 //析构函数，释放指针资源，等待线程退出
@@ -96,6 +97,7 @@ void TdSpi::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin,
 		<< "交易日：" << my_tdapi->GetTradingDay() << endl;
 	cout << "--------------------------------------------" << endl << endl;
 
+	my_strategy->UpdateTradeBasis(pRspUserLogin->FrontID, pRspUserLogin->SessionID);
 	//在开始交易前查询资金账户
 	//相应后会回调OnRspQryTradingAccount函数
 	 //strcpy_s(my_account->BrokerID, broker.c_str());
@@ -242,25 +244,29 @@ void TdSpi::OnRspQryTradingAccount(CThostFtdcTradingAccountField *pTradingAccoun
 	cout << "========持仓信息详情========" << endl;
 	strcpy_s(my_pos->BrokerID, broker.c_str());
 	strcpy_s(my_pos->InvestorID, user_id.c_str());
+	std::chrono::milliseconds sleepDuration(1 * 1000); //防止查询过快
+	std::this_thread::sleep_for(sleepDuration);
 	for (map<string, POS_INFO>::iterator it = pos.begin(); it != pos.end(); it++) {
-		std::chrono::milliseconds sleepDuration(1 * 1000); //防止查询过快
-		std::this_thread::sleep_for(sleepDuration);
 		strcpy_s(my_pos->InstrumentID, (it->first).c_str());
-		AlertInfo(my_tdapi->ReqQryInvestorPosition(my_pos, 10), "ReqQryInvestorPosition");
+		AlertInfo(my_tdapi->ReqQryInvestorPosition(my_pos, 1), "ReqQryInvestorPosition");
 	}
 }
 //请求查询投资者持仓响应
 void TdSpi::OnRspQryInvestorPosition(CThostFtdcInvestorPositionField *pInvestorPosition,
 	CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
-	if (pInvestorPosition == nullptr && bIsLast) {
-		cout << "No holding position!" << endl;
+	if (pRspInfo != nullptr) {
+		cout << "错误代码：" << pRspInfo->ErrorID << "错误信息:" << pRspInfo->ErrorMsg;
 	}
 	else {
-		cout << "OnRspQryInvestorPosition  ID: " << nRequestID << endl;
-		cout << "错误代码：" << pRspInfo->ErrorID << "错误信息:" << pRspInfo->ErrorMsg;
-		cout << "合约代码:" << pInvestorPosition->InstrumentID << "持仓多空方向:" << pInvestorPosition->PosiDirection << endl;
-		pos[pInvestorPosition->InstrumentID].YdPosition = pInvestorPosition->YdPosition * (pInvestorPosition->PosiDirection == '2' ? 1 : -1);
-		pos[pInvestorPosition->InstrumentID].Position = pInvestorPosition->Position * (pInvestorPosition->PosiDirection == '2' ? 1 : -1);
+		if (pInvestorPosition->Position != 0) {
+			pos[pInvestorPosition->InstrumentID].YdPosition = pInvestorPosition->YdPosition * (pInvestorPosition->PosiDirection == '2' ? 1 : -1);
+			pos[pInvestorPosition->InstrumentID].Position = pInvestorPosition->Position * (pInvestorPosition->PosiDirection == '2' ? 1 : -1);
+		}
+		if (bIsLast) 
+			cout << "合约代码:" << pInvestorPosition->InstrumentID
+			<< " 当前持仓：" << pos[pInvestorPosition->InstrumentID].Position
+			<< " bIsLast: " << (bIsLast ? 1 : 0)
+			<< endl;
 	}
 }
 
@@ -287,82 +293,119 @@ void TdSpi::AlertInfo(int res, string func) {
 }
 
 //报单录入,后台自动由LittleTrader调用
-int TdSpi::InsertOrder() {
+//根据报单状态信息判断是报单还是撤单
+void TdSpi::OrderAction() {
 	while (true) {
 		std::unique_lock<std::mutex> lck(mtx);
 		while (order_queue.size() == 0) {
 			empty_signal.wait(lck);
 		}
-		if (order_queue[0].id == "EOF")		//报单的合约代码为EOF表示线程结束
+		if (order_queue[0].id == "EOF")			//报单的合约代码为EOF表示线程结束
 			break;
-		else if (order_queue.size() == 0) {	//假唤醒，为以后的无锁高效报单队列做准备
+		else if (order_queue.size() == 0) {		//假唤醒，为以后的无锁高效报单队列做准备
 			lck.unlock();
 			continue;
 		}
 		cout << "Get new order!" << endl;
-		CThostFtdcInputOrderField ord;
-		memset(&ord, 0, sizeof(ord));
-		//经纪公司代码
-		strcpy_s(ord.BrokerID, broker.c_str());
-		//投资者代码
-		strcpy_s(ord.InvestorID, user_id.c_str());
-		// 合约代码
-		strcpy_s(ord.InstrumentID, order_queue[0].id.c_str());
-		///报单引用
-		order_reference++;
-		sprintf_s(ORDER_REF, "%d", order_reference);
-		strcpy_s(ord.OrderRef, ORDER_REF);
-		// 用户代码
-		//strcpy_s(ord.UserID, "zy");
-		// 报单价格条件
-		ord.OrderPriceType = THOST_FTDC_OPT_LimitPrice;
-		// 买卖方向
-		if(order_queue[0].direction==0)
-			ord.Direction = THOST_FTDC_D_Buy;
-		else
-			ord.Direction = THOST_FTDC_D_Sell;
-		// 开平仓标志
-		if (order_queue[0].type == 0)
-			ord.CombOffsetFlag[0] = THOST_FTDC_OF_Open;
-		else
-			ord.CombOffsetFlag[0] = THOST_FTDC_OF_Close;
-		// 组合投机套保标志，个人用户只进行投机
-		ord.CombHedgeFlag[0] = THOST_FTDC_HF_Speculation;
-		// 价格
-		ord.LimitPrice = order_queue[0].price;
-		// 数量
-		ord.VolumeTotalOriginal = order_queue[0].volume;
-		// 有效期类型
-		ord.TimeCondition = THOST_FTDC_TC_GFD;
-		// GTD日期
-		//strcpy_s(ord.GTDDate, "");
-		// 成交量类型
-		ord.VolumeCondition = THOST_FTDC_VC_AV;
-		// 最小成交量
-		ord.MinVolume = 1;
-		// 触发条件
-		ord.ContingentCondition = THOST_FTDC_CC_Immediately;
-		// 强平原因
-		ord.ForceCloseReason = THOST_FTDC_FCC_NotForceClose;
-		// 自动挂起标志
-		ord.IsAutoSuspend = 0;
-		//用户强评标志: 否
-		ord.UserForceClose = 0;
+		if (order_queue[0].order_type == ORDER_COMMIT) {
+			CThostFtdcInputOrderField ord;
+			memset(&ord, 0, sizeof(ord));
+			///经纪公司代码
+			strcpy_s(ord.BrokerID, broker.c_str());
+			///投资者代码
+			strcpy_s(ord.InvestorID, user_id.c_str());
+			///合约代码
+			strcpy_s(ord.InstrumentID, order_queue[0].id.c_str());
+			///报单引用
+			//order_reference++;
+			//sprintf_s(ORDER_REF, "%d", order_reference);
+			//strcpy_s(ord.OrderRef, ORDER_REF);
+			strcpy_s(ord.OrderRef, order_queue[0].ORDER_REF);
+			///用户代码
+			//	TThostFtdcUserIDType	UserID;
+			///报单价格条件: 限价
+			ord.OrderPriceType = THOST_FTDC_OPT_LimitPrice;
+			///买卖方向: 
+			ord.Direction = order_queue[0].direction;
+			///组合开平标志: 开仓
+			ord.CombOffsetFlag[0] = order_queue[0].type;
+			///组合投机套保标志
+			ord.CombHedgeFlag[0] = THOST_FTDC_HF_Speculation;
+			///价格
+			ord.LimitPrice = order_queue[0].price;
+			///数量: 1
+			ord.VolumeTotalOriginal = 1;
+			///有效期类型: 当日有效
+			ord.TimeCondition = THOST_FTDC_TC_GFD;
+			///GTD日期
+			//	TThostFtdcDateType	GTDDate;
+			///成交量类型: 任何数量
+			ord.VolumeCondition = THOST_FTDC_VC_AV;
+			///最小成交量: 1
+			ord.MinVolume = 1;
+			///触发条件: 立即
+			ord.ContingentCondition = THOST_FTDC_CC_Immediately;
+			///止损价
+			//	TThostFtdcPriceType	StopPrice;
+			///强平原因: 非强平
+			ord.ForceCloseReason = THOST_FTDC_FCC_NotForceClose;
+			///自动挂起标志: 否
+			ord.IsAutoSuspend = 0;
+			///业务单元
+			//	TThostFtdcBusinessUnitType	BusinessUnit;
+			///请求编号
+			//	TThostFtdcRequestIDType	RequestID;
+			///用户强评标志: 否
+			ord.UserForceClose = 0;
 
-		AlertInfo(my_tdapi->ReqOrderInsert(&ord, ++order_request), "ReqOrderInsert");
+			//报单
+			AlertInfo(my_tdapi->ReqOrderInsert(&ord, ++order_request), "ReqOrderInsert");
+		}
+		else if(order_queue[0].order_type == ORDER_CANCEL) {
+			CThostFtdcInputOrderActionField req;
+			memset(&req, 0, sizeof(req));
+			///经纪公司代码
+			strcpy_s(req.BrokerID, broker.c_str());
+			///投资者代码
+			strcpy_s(req.InvestorID, user_id.c_str());
+			///报单操作引用
+			//	TThostFtdcOrderActionRefType	OrderActionRef;
+			///报单引用
+			strcpy_s(req.OrderRef, order_queue[0].ORDER_REF);
+			///请求编号
+			//	TThostFtdcRequestIDType	RequestID;
+			///前置编号
+			req.FrontID = order_queue[0].front_id;
+			///会话编号
+			req.SessionID = order_queue[0].session_id;
+			///交易所代码
+			//	TThostFtdcExchangeIDType	ExchangeID;
+			///报单编号
+			//	TThostFtdcOrderSysIDType	OrderSysID;
+			///操作标志
+			req.ActionFlag = THOST_FTDC_AF_Delete;
+			///价格
+			//	TThostFtdcPriceType	LimitPrice;
+			///数量变化
+			//	TThostFtdcVolumeType	VolumeChange;
+			///用户代码
+			//	TThostFtdcUserIDType	UserID;
+			///合约代码
+			strcpy_s(req.InstrumentID, order_queue[0].id.c_str());
+
+			//撤单
+			AlertInfo(my_tdapi->ReqOrderAction(&req, ++order_request), "ReqOrderInsert");
+		}
+		else {
+			cout << "Wrong Order Type! Little Trader Waits!" << endl;
+		}
 		//弹出单子队列
 		order_queue.pop_front();
 		lck.unlock();
 	}
-	return 0;
 };
-//报单操作（改撤单）,TdSpi主动调用
-//目前第一版暂时不用
-int TdSpi::OrderAction(CThostFtdcInputOrderActionField *pInputOrderAction, int nRequestID) {
 
-}
-
-//报单录入应答，CTP回调函数
+//报单录入错误应答，CTP回调函数
 void TdSpi::OnRspOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
 	if (pRspInfo == nullptr)
 		cout << "No information returned!" << endl;
@@ -372,10 +415,14 @@ void TdSpi::OnRspOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostFtdcR
 	}
 }
 
-//报单操作应答，CTP回调函数
-//目前第一版暂时不用
+//撤单操作错误应答，CTP回调函数
 void TdSpi::OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrderAction, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {
-
+	if (pRspInfo == nullptr)
+		cout << "No information returned!" << endl;
+	else {
+		cout << "Error ID is: " << pRspInfo->ErrorID << endl;
+		cout << "Returned information is: " << pRspInfo->ErrorMsg << endl;
+	}
 }
 
 //报单回报，CTP回调函数
