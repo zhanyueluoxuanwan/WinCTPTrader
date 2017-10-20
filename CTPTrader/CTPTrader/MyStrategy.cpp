@@ -15,8 +15,10 @@ void MyStrategy::TradeOnMarketData(map<string, vector<FT_DATA>> &market_data, st
 	if (InstrumentID != "rb1801")
 		return;
 	count++;
-	if (count % 10 != 0)	//每20组行情交一次
+	if (count % 20 != 0)	//每20组行情交一次
 		return;
+	//测试报撤单
+	/*
 	if (pos == 0) {
 		cout << "Buy rb1801 contract!" << endl;
 		ORDER new_order;
@@ -27,6 +29,7 @@ void MyStrategy::TradeOnMarketData(map<string, vector<FT_DATA>> &market_data, st
 		new_order.type = TYPE_OPEN;				//开仓
 		new_order.order_type = ORDER_COMMIT;	//报单
 		CommitOrder(new_order);
+		new_order.volume = 1;
 		pos = 1;
 	}
 	else if (pos = 1) {		//测试撤单
@@ -37,19 +40,34 @@ void MyStrategy::TradeOnMarketData(map<string, vector<FT_DATA>> &market_data, st
 		CancelOrder(new_order);
 		pos = 0;
 	}
-	/*
+	*/
+	//测试成交
+	if (pos == 0) {
+		cout << "Buy rb1801 contract!" << endl;
+		ORDER new_order;
+		new_order.id = InstrumentID;
+		new_order.price = market_data[InstrumentID][market_data[InstrumentID].size() - 1].ask1;
+		cout << "Open price is: " << new_order.price << endl;
+		new_order.direction = BID;				//买
+		new_order.type = TYPE_OPEN;				//开仓
+		new_order.order_type = ORDER_COMMIT;	//报单
+		new_order.volume = 1;
+		CommitOrder(new_order);
+		pos = 1;
+	}
 	else if (pos == 1) {	//测试报单
 		cout << "Sell rb1801 contract!" << endl;
 		ORDER new_order;
 		new_order.id = InstrumentID;
-		new_order.price = market_data[InstrumentID][market_data[InstrumentID].size() - 1].upper_limit;
+		new_order.price = market_data[InstrumentID][market_data[InstrumentID].size() - 1].bid1;
 		new_order.direction = ASK;				//卖
-		new_order.type = TYPE_OPEN;				//平仓
+		//new_order.type = TYPE_OPEN;			//开仓
+		new_order.type = TYPE_TCLOSE;			//平仓
 		new_order.order_type = ORDER_COMMIT;	//报单
+		new_order.volume = 1;
 		CommitOrder(new_order);
 		pos = 0;
 	}
-	*/
 }
 
 //处理报单回报
@@ -77,7 +95,7 @@ void MyStrategy::OnRtnTrade(MyTrade *trade) {
 		<< " Volume is: " << trade->Volume
 		<< " Order direction: " << trade->Direction
 		<< endl;
-
+	
 }
 
 //提交报单
@@ -86,7 +104,6 @@ void MyStrategy::CommitOrder(ORDER &new_order) {
 	sprintf_s(ORDER_REF, "%d", order_reference);
 	strcpy_s(new_order.ORDER_REF, ORDER_REF);
 	order_queue.push_back(new_order);
-	local_order_queue.insert(make_pair(order_reference, true));
 	empty_signal.notify_all();
 }
 

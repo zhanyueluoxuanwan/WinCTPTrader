@@ -12,6 +12,7 @@ typedef TThostFtdcOrderRefType MyOrderRef;
 
 class MyStrategy {
 public:
+	//结构性函数，请勿修改
 	//构造函数，加上uid
 	MyStrategy(int id) :uid(id), pos(0), count(0), order_request(0), order_reference(0), front_id(0), session_id(0) {
 		local_order_queue.clear();
@@ -34,6 +35,20 @@ public:
 	//进行撤单(改单功能第二版再添加)
 	//注：改单功能只在下列情况下有效：1.交易时段，2.调用前必须含有报单
 	void CancelOrder(ORDER &new_order);
+	//更新成交状态信息
+	void UpdateOnRtnTrade(MyTrade *trade) {
+		//单子已经成交，更新状态
+		local_order_queue[atoi(trade->OrderRef)] = false;
+	}
+	//更新报单状态信息
+	void UpdateOnRtnOrder(MyOrder *order) {
+		//插入报单
+		local_order_queue.insert(make_pair(atoi(order->OrderRef), true));
+	}
+
+
+	//以下为添加新函数位置：
+
 private:
 	int uid;	//策略编号，用于后期多策略注册使用
 	int pos;	//合约持仓

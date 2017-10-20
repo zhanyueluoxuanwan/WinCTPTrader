@@ -380,7 +380,7 @@ void TdSpi::OrderAction() {
 				///价格
 				ord.LimitPrice = order_queue[0].price;
 				///数量: 1
-				ord.VolumeTotalOriginal = 1;
+				ord.VolumeTotalOriginal = order_queue[0].volume;
 				///有效期类型: 当日有效
 				ord.TimeCondition = THOST_FTDC_TC_GFD;
 				///GTD日期
@@ -478,9 +478,11 @@ void TdSpi::OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrderAction,
 
 //报单回报，CTP回调函数
 void TdSpi::OnRtnOrder(CThostFtdcOrderField *pOrder) {
+	my_strategy->UpdateOnRtnOrder(pOrder);		//更新本地报单队列
 	my_strategy->OnRtnOrder(pOrder);
 }
 //成交回报，CTP回调函数
 void TdSpi::OnRtnTrade(CThostFtdcTradeField *pTrade) {
-	my_strategy->OnRtnTrade(pTrade);
+	my_strategy->UpdateOnRtnTrade(pTrade);	//更新本地报单队列
+	my_strategy->OnRtnTrade(pTrade);		//返回成交回报
 }

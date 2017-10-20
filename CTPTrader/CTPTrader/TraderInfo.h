@@ -42,11 +42,12 @@ typedef struct {
 	int front_id;						//交易前置
 	int session_id;						//当前会话
 }ORDER;
-//仓位类型
+//单子仓位类型
+//测试先用TCLOSE平今仓
 #define TYPE_OPEN	'0'
-#define TYPE_CLOSE	'1'
+#define TYPE_CLOSE	'1'		
 #define TYPE_FCLOSE '2'		//强平所有仓位
-#define TYPE_TCLOSE '3'		//平今仓
+#define TYPE_TCLOSE '3'		//平今仓，暂时先用此标记段
 #define TYPE_YCLOSE '4'		//平昨仓
 //交易方向
 #define BID '0'				//买
@@ -54,11 +55,15 @@ typedef struct {
 //单子类型
 #define ORDER_COMMIT 0		//报单
 #define ORDER_CANCEL 1		//撤单
+//用于报单状态查询
+#define ACTIVE true			//等待成交状态
+#define TRADED false		//已经成交，无法撤单
 
 //报单请求，目前没啥用，先预留
 extern volatile int order_request;				
 
 //合约信息结构，同数据库表类型结构一致
+//现在只包含了盘口信息，以后会更新五档盘口信息
 typedef struct {
 	string id;
 	string time;
