@@ -445,7 +445,7 @@ void TdSpi::OrderAction() {
 			strcpy_s(req.InstrumentID, order_queue[0].id.c_str());
 
 			//撤单
-			AlertInfo(my_tdapi->ReqOrderAction(&req, ++order_request), "ReqOrderInsert");
+			AlertInfo(my_tdapi->ReqOrderAction(&req, ++order_request), "ReqOrderCancel");
 		}
 		else {
 			cout << "Wrong Order Type! Little Trader Waits!" << endl;
@@ -477,8 +477,21 @@ void TdSpi::OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrderAction,
 }
 
 //报单回报，CTP回调函数
+//只计算了一次性成交的情况，复杂情况需要以后添加
 void TdSpi::OnRtnOrder(CThostFtdcOrderField *pOrder) {
-	my_strategy->UpdateOnRtnOrder(pOrder);		//更新本地报单队列
+	//更新资金信息
+	if (strcmp(pOrder->OrderSysID, "") != 0) {
+		if (pOrder->OrderStatus == THOST_FTDC_OST_Canceled) {	//撤单成功
+			money += pOrder->LimitPrice * pOrder->VolumeTotalOriginal * trade_param[pOrder->InstrumentID].deposit_percent * trade_param[pOrder->InstrumentID].multiplier;
+			cout << "Order Canceled current money is: " << money << endl;
+			my_strategy->UpdateOnRtnOrder(pOrder, false);		//更新本地报单队列
+		}
+		else if(my_strategy->ReturnOrderStatus(atoi(pOrder->OrderRef))==0) {	//报单成功
+			money -= pOrder->LimitPrice * pOrder->VolumeTotalOriginal * trade_param[pOrder->InstrumentID].deposit_percent * trade_param[pOrder->InstrumentID].multiplier;
+			cout << "Order Submitted current money is: " << money << endl;
+			my_strategy->UpdateOnRtnOrder(pOrder, true);		//更新本地报单队列
+		}
+	}
 	my_strategy->OnRtnOrder(pOrder);
 }
 //成交回报，CTP回调函数

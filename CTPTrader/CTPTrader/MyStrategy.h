@@ -41,11 +41,14 @@ public:
 		local_order_queue[atoi(trade->OrderRef)] = false;
 	}
 	//更新报单状态信息
-	void UpdateOnRtnOrder(MyOrder *order) {
+	void UpdateOnRtnOrder(MyOrder *order, bool status) {
 		//插入报单
-		local_order_queue.insert(make_pair(atoi(order->OrderRef), true));
+		local_order_queue.insert(make_pair(atoi(order->OrderRef), status));
 	}
-
+	//返回本地维护报单信息，用于分辨是报单还是撤单
+	size_t ReturnOrderStatus(int order_id) {
+		return local_order_queue.count(order_id);
+	}
 
 	//以下为添加新函数位置：
 

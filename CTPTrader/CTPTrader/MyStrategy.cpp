@@ -15,7 +15,7 @@ void MyStrategy::TradeOnMarketData(map<string, vector<FT_DATA>> &market_data, st
 	if (InstrumentID != "rb1801")
 		return;
 	count++;
-	if (count % 20 != 0)	//每20组行情交一次
+	if (count % 10 != 0)	//每10组行情交一次
 		return;
 	//测试报撤单
 	/*
@@ -28,8 +28,8 @@ void MyStrategy::TradeOnMarketData(map<string, vector<FT_DATA>> &market_data, st
 		new_order.direction = BID;				//买
 		new_order.type = TYPE_OPEN;				//开仓
 		new_order.order_type = ORDER_COMMIT;	//报单
-		CommitOrder(new_order);
-		new_order.volume = 1;
+		new_order.volume = 1;					//数量
+		CommitOrder(new_order);				
 		pos = 1;
 	}
 	else if (pos = 1) {		//测试撤单
@@ -68,11 +68,13 @@ void MyStrategy::TradeOnMarketData(map<string, vector<FT_DATA>> &market_data, st
 		CommitOrder(new_order);
 		pos = 0;
 	}
+
 }
 
 //处理报单回报
+//慎用，CTP报单回报功能测试不全
 void MyStrategy::OnRtnOrder(MyOrder *order) {
-	if (strcmp(order->OrderSysID, "") == 0) 
+	if (strcmp(order->OrderSysID, "") == 0 || local_order_queue[atoi(order->OrderSysID)])
 		cout << "=========报单成功=========" << endl;
 	else {
 		cout << "=========报单接收=========" << endl;
@@ -83,6 +85,7 @@ void MyStrategy::OnRtnOrder(MyOrder *order) {
 			<< " Order direction: " << order->Direction
 			<< " Order status: " << order->OrderStatus
 			<< " Order status message: " << order->StatusMsg
+			<< " MinVolume " << order->MinVolume
 			<< endl;
 	}
 }
